@@ -5,7 +5,7 @@ Backend-first game top-up portfolio with a plain **HTML + CSS + vanilla JavaScri
 ## Current status
 
 - Implemented and tested locally: registration, hashed passwords, server-side sessions, CSRF protection, public catalog/articles, device-local cart, server-priced checkout, order ownership, idempotent simulated payments, durable fulfillment queue, supplier simulation balance/ledger, admin price controls, articles, and audit logs.
-- **Neon database provisioned and migrated (2026-09-25).** Project `miracle-gaming`, AWS Singapore, PostgreSQL 18. Verified through Neon SQL Editor: 12 application tables, 4 games, 5 products, 1 article and 1 Drizzle migration. Direct application-to-Neon connectivity remains unverified: this workspace returns DNS error `EAI_AGAIN`. The website is not deployed yet.
+- **Neon database provisioned and migrated (2026-09-25).** Project `miracle-gaming`, AWS Singapore, PostgreSQL 18. Verified through Neon SQL Editor: 12 application tables, 4 games, 5 products, 1 article and 1 Drizzle migration. Deployed to https://miracle-gaming.vercel.app on Vercel; the live health endpoint successfully queries Neon. Direct database access from the development workspace remains restricted by its DNS/network.
 - Source repository: `arkhenmmiracle/miracle-gaming`. No unrelated repository was modified.
 - Payment and fulfillment are **simulation only**. There is no real payment QR code, live supplier, nickname validation, or real diamond delivery.
 - The optional local demo uses PGlite (local PostgreSQL), explicitly labelled in the UI. It is not Neon and is forbidden with `NODE_ENV=production`.
@@ -22,7 +22,7 @@ npm run demo:init
 npm run demo
 ```
 
-Open `http://localhost:3000`. Create a customer account in the UI (password minimum 12 characters). Choose a game, enter ID/server, add to cart, checkout and click **Simulasikan Pembayaran Berhasil**. The worker processes one queued order every 3 seconds; use **Periksa Status** to refresh.
+Open `http://localhost:3000`. Create a customer account in the UI (password minimum 12 characters). Choose a game, enter ID/server, add to cart, checkout and click **Simulasikan Pembayaran Berhasil**. The local worker processes one queued order every 3 seconds; the Vercel demo processes the paid order within the payment/retry request, without a background timer; use **Periksa Status** to refresh.
 
 The catalog contains 4 games and 5 example products. Original AI-generated imagery is illustrative, not official game artwork. Prices are examples.
 
@@ -147,3 +147,7 @@ npm ci
 ```
 
 GitHub Pages alone cannot run this backend. Deploy to a Node.js-capable host and configure the same-origin app with Neon server credentials.
+
+## Vercel deployment
+
+The root `server.js` exports the Express application. Set production `DATABASE_URL` (Neon pooled URL) and `APP_ORIGIN=https://miracle-gaming.vercel.app` in Vercel, then redeploy. Keep payment and supplier modes set to `simulation`. Demo customer/admin credentials are shared privately, never committed. The current rate limiter is per instance; it is not a global distributed limit.
