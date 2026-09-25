@@ -5,7 +5,7 @@ Backend-first game top-up portfolio with a plain **HTML + CSS + vanilla JavaScri
 ## Current status
 
 - Implemented and tested locally: registration, hashed passwords, server-side sessions, CSRF protection, public catalog/articles, device-local cart, server-priced checkout, order ownership, idempotent simulated payments, durable fulfillment queue, supplier simulation balance/ledger, admin price controls, articles, and audit logs.
-- **Neon is not connected yet.** The connected Neon tool currently fails because its project context (`project_id`) is missing. No existing Neon project was changed.
+- **Neon database provisioned and migrated (2026-09-25).** Project `miracle-gaming`, AWS Singapore, PostgreSQL 18. Verified through Neon SQL Editor: 12 application tables, 4 games, 5 products, 1 article and 1 Drizzle migration. Direct application-to-Neon connectivity remains unverified: this workspace returns DNS error `EAI_AGAIN`. The website is not deployed yet.
 - Source repository: `arkhenmmiracle/miracle-gaming`. No unrelated repository was modified.
 - Payment and fulfillment are **simulation only**. There is no real payment QR code, live supplier, nickname validation, or real diamond delivery.
 - The optional local demo uses PGlite (local PostgreSQL), explicitly labelled in the UI. It is not Neon and is forbidden with `NODE_ENV=production`.
@@ -37,7 +37,7 @@ node src/server.js
 
 ## Connect Neon
 
-1. Create a dedicated project/database for MIRACLE TOPUP; do not reuse another application's schema.
+1. Use the dedicated `miracle-gaming` Neon project (`tiny-lab-90182510`), branch `production` (`br-flat-unit-b3p0tx01`), database `neondb`. For a separate installation, create a new project.
 2. Copy `.env.example` to `.env`.
 3. Set `DATABASE_URL` to the pooled Neon URL and `DATABASE_URL_UNPOOLED` to the direct URL. Keep TLS enabled as provided by Neon.
 4. Set `APP_ORIGIN` to the exact frontend origin; set `LOCAL_DEMO=false`.
@@ -50,6 +50,18 @@ npm start
 ```
 
 Secrets belong in server environment variables, never in `public/`, GitHub, screenshots, or chat. `.env` and `.local-db/` are git-ignored. Data in the local demo is not automatically copied to Neon.
+
+### Initial database setup fallback
+
+The initial setup was applied through Neon SQL Editor because this workspace could not resolve the database host and the connector lacked project context. The SQL was exported from the committed Drizzle migration, including its original hash/timestamp journal, plus `db/seed.js`, and executed in one transaction. Subsequent `npm run db:migrate` runs recognize it as already applied.
+
+For a **new, empty database only**, generate the same bootstrap SQL:
+
+```sh
+node scripts/export-neon-bootstrap.js > neon-bootstrap.sql
+```
+
+Do not rerun this bootstrap on the existing database. Use normal Drizzle migrations for later changes. The bootstrap was also verified locally by applying it to an empty PGlite database and then running the standard migrator without duplicate schema creation.
 
 ## Create an administrator
 
