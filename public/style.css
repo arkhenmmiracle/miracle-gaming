@@ -29,3 +29,8 @@
 .art-guide-id{--art-ratio:297/65;--art-size:344.78114478114475% 2363.0769230769233%;--art-pos:7.152682255845942% 71.7199184228416%;}
 .art-guide-order{--art-ratio:294/65;--art-size:348.29931972789115% 2363.0769230769233%;--art-pos:50.0% 71.7199184228416%;}
 .art-guide-demo{--art-ratio:297/65;--art-size:344.78114478114475% 2363.0769230769233%;--art-pos:93.53507565337001% 71.7199184228416%;}
+
+/* Admin workspace is separate from the customer storefront. */
+.admin-mode header nav,.admin-mode .cart-link,.admin-mode .market-footer{display:none}
+.admin-mode header{justify-content:space-between}.admin-mode main{max-width:1600px;padding:32px 40px}.admin-layout>section{min-width:0}.admin-nav{position:sticky;top:96px;align-self:start}.admin-mode .filters label{min-width:240px}.admin-mode .toolbar{margin-bottom:18px}.admin-mode dialog{width:min(520px,92vw);max-height:88vh;overflow:auto}.admin-mode table td{vertical-align:top}.admin-mode table small{display:block;margin-top:4px}.admin-mode .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:800px){.admin-mode main{padding:20px 16px}.admin-nav{position:static}.admin-mode .stats{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-mode header{height:auto;min-height:70px}.admin-mode .filters label{width:100%}}

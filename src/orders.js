@@ -29,11 +29,6 @@ export async function processSimulation(db,orderId=null){return db.transaction(a
  const job=(await tx.query("SELECT j.* FROM fulfillment_jobs j JOIN orders o ON o.id=j.order_id WHERE j.status='queued' AND o.payment_status='paid' AND ($1::uuid IS NULL OR j.order_id=$1) ORDER BY j.created_at LIMIT 1 FOR UPDATE OF j SKIP LOCKED",[orderId])).rows[0];if(!job)return false;
  const order=(await tx.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE',[job.order_id])).rows[0];
  if(order.fulfillment_status==='success'){await tx.query("UPDATE fulfillment_jobs SET status='done' WHERE id=$1",[job.id]);return true;}
- const s=(await tx.query('SELECT * FROM supplier_settings WHERE id=1 FOR UPDATE')).rows[0];
- const cost=Number((await tx.query('SELECT SUM(cost) AS total FROM order_items WHERE order_id=$1',[order.id])).rows[0].total);
- if(!s||s.balance<cost){await tx.query("UPDATE orders SET fulfillment_status='held' WHERE id=$1",[order.id]);await tx.query("UPDATE fulfillment_jobs SET status='held' WHERE id=$1",[job.id]);await tx.query('INSERT INTO order_events(order_id,message) VALUES ($1,$2)',[order.id,'Saldo pemasok simulasi tidak mencukupi. Menunggu admin.']);return true;}
- await tx.query('UPDATE supplier_settings SET balance=balance-$1 WHERE id=1',[cost]);
- await tx.query('INSERT INTO supplier_ledger(order_id,amount,description) VALUES ($1,$2,$3)',[order.id,-cost,'Pembelian top up simulasi']);
  await tx.query("UPDATE order_items SET status='success' WHERE order_id=$1",[order.id]);
  await tx.query("UPDATE orders SET fulfillment_status='success' WHERE id=$1",[order.id]);
  await tx.query("UPDATE fulfillment_jobs SET status='done',attempts=attempts+1 WHERE id=$1",[job.id]);

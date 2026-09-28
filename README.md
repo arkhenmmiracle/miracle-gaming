@@ -115,8 +115,8 @@ HTML / CSS / browser JavaScript
 | POST | `/api/orders/:id/simulate-payment` | Owner; simulation only |
 | GET | `/api/admin/dashboard`, `/api/admin/orders`, `/api/admin/orders/:id` | Admin |
 | POST | `/api/admin/orders/:id/retry`, `/api/admin/orders/:id/notes` | Admin |
-| GET/PATCH | `/api/admin/products`, `/api/admin/products/:id` | Admin |
-| GET/POST | `/api/admin/supplier`, `/api/admin/supplier/deposit` | Admin; deposit simulated |
+| GET/POST/PATCH | `/api/admin/products`, `/api/admin/products/:id` | Admin |
+| GET | `/api/admin/supplier`, `/api/admin/games` | Admin; shipment records and games |
 | GET/POST | `/api/admin/articles` | Admin |
 | GET | `/api/admin/audit` | Admin |
 
@@ -151,3 +151,5 @@ GitHub Pages alone cannot run this backend. Deploy to a Node.js-capable host and
 ## Vercel deployment
 
 The root `server.js` exports the Express application. Set production `DATABASE_URL` (Neon pooled URL) and `APP_ORIGIN=https://miracle-gaming.vercel.app` in Vercel, then redeploy. Keep payment and supplier modes set to `simulation`. Demo customer/admin credentials are shared privately, never committed. The current rate limiter is per instance; it is not a global distributed limit.
+
+Admin sessions redirect to the data workspace. Dashboard, orders, products and shipment records accept `?game=<game-id>`. Per-game revenue excludes service fees and counts only matching item prices; order tables retain invoice totals. Paid demo orders are fulfilled without deposits. Legacy balance tables remain for historical compatibility and are no longer read or debited. Current shipment provider is explicitly the MIRACLE simulator.
