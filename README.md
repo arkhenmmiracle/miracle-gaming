@@ -153,3 +153,11 @@ GitHub Pages alone cannot run this backend. Deploy to a Node.js-capable host and
 The root `server.js` exports the Express application. Set production `DATABASE_URL` (Neon pooled URL) and `APP_ORIGIN=https://miracle-gaming.vercel.app` in Vercel, then redeploy. Keep payment and supplier modes set to `simulation`. Demo customer/admin credentials are shared privately, never committed. The current rate limiter is per instance; it is not a global distributed limit.
 
 Admin sessions redirect to the data workspace. Dashboard, orders, products and shipment records accept `?game=<game-id>`. Per-game revenue excludes service fees and counts only matching item prices; order tables retain invoice totals. Paid demo orders are fulfilled without deposits. Legacy balance tables remain for historical compatibility and are no longer read or debited. Current shipment provider is explicitly the MIRACLE simulator.
+
+## Reports and demo exception handling
+
+Dashboard and CSV report support `game`, `start`, `end` (YYYY-MM-DD, WIB, maximum 366 days). Paid revenue uses the immutable payment-received event timestamp; pending orders use creation time. Refunds are attributed to the original payment cohort, not refund-date cash flow. Cost includes fulfilled items only. Gateway fees are zero in simulation; margin excludes operating expenses.
+
+Customer payment simulation accepts `outcome: success|failed`. A failed outcome records received payment but does not deliver products. Admin retry/refund lock the fulfillment job then order, reject delivered/uncertain orders, and audit changes. Full simulated refunds are idempotent. No real money is moved. `/api/admin/reports.csv` requires an admin session.
+
+Customers can request help at `/api/orders/:id/help`; admin replies at `/api/admin/orders/:id/reply`. Unanswered messages appear in the attention queue alongside failed/held/unknown shipments. Customer detail polls every 10 seconds while visible, pauses while a message draft is present, and stops on navigation.

@@ -36,4 +36,32 @@ test('zero legacy balance does not block paid orders; products and game filters'
  const dash=(await a.get('/api/admin/dashboard?game=free-fire')).body;assert.equal(Number(dash.summary.received),10000);assert.equal(dash.summary.orders,1);assert.equal(dash.sales.length,30);assert.equal(dash.sales.reduce((n,r)=>n+Number(r.revenue),0),10000);assert.equal(dash.sales.reduce((n,r)=>n+r.orders,0),1);const empty=(await a.get('/api/admin/dashboard?game=pubg-mobile')).body;assert.ok(empty.sales.every(r=>Number(r.revenue)===0&&r.orders===0));
  const shipments=(await a.get('/api/admin/supplier?game=free-fire')).body;assert.equal(shipments.length,1);assert.equal(shipments[0].product_name,'70 Diamonds');assert.equal(shipments[0].target_id,'987654');assert.equal(shipments[0].processed_by,'Sistem otomatis (simulasi)');
 });
+test('failure, help, safe retry and idempotent refund with period reporting',async()=>{
+ const make=async key=>(await post(b,'/orders',csrfB,{items:[{productId:product,targetId:'555555',serverId:'1234'}]}).set('Idempotency-Key',key)).body;
+ const failed=await make('failure-refund-demo-01');
+ assert.equal((await post(b,'/orders/'+failed.id+'/simulate-payment',csrfB,{outcome:'failed'})).status,200);
+ assert.equal(await processSimulation(db),false);
+ assert.equal((await b.get('/api/orders/'+failed.id)).body.fulfillment_status,'failed');
+ assert.equal((await post(b,'/admin/orders/'+failed.id+'/refund',csrfB,{reason:'Requested refund'})).status,403);
+ assert.equal((await post(a,'/orders/'+failed.id+'/help',csrfA,{message:'wrong owner'})).status,404);
+ assert.equal((await post(b,'/orders/'+failed.id+'/help',csrfB,{message:'Tolong periksa pesanan saya'})).status,200);
+ assert.ok((await a.get('/api/admin/orders?attention=true')).body.some(o=>o.id===failed.id&&o.needs_help));
+ assert.equal((await post(a,'/admin/orders/'+failed.id+'/reply',csrfA,{message:'Pesanan akan dikembalikan dalam simulasi.'})).status,200);
+ assert.equal((await post(a,'/admin/orders/'+order.id+'/refund',csrfA,{reason:'Already delivered'})).status,409);
+ for(let n=0;n<2;n++)assert.equal((await post(a,'/admin/orders/'+failed.id+'/refund',csrfA,{reason:'Pemasok gagal mengirim'})).status,200);
+ assert.equal((await post(a,'/admin/orders/'+failed.id+'/retry',csrfA)).status,409);
+ assert.equal((await b.get('/api/orders/'+failed.id)).body.payment_status,'refunded');
+ assert.equal((await db.query("SELECT id FROM audit_logs WHERE action='order.refund' AND detail->>'orderId'=$1",[failed.id])).rows.length,1);
+ assert.ok(!(await a.get('/api/admin/orders?attention=true')).body.some(o=>o.id===failed.id));
+ const retry=await make('failure-retry-demo-02');await post(b,'/orders/'+retry.id+'/simulate-payment',csrfB,{outcome:'failed'});
+ assert.equal((await post(a,'/admin/orders/'+retry.id+'/retry',csrfA)).status,200);await processSimulation(db);assert.equal((await post(a,'/admin/orders/'+retry.id+'/retry',csrfA)).status,409);
+ // Reporting follows payment event date, even when creation was earlier.
+ await db.query("UPDATE orders SET created_at='2020-01-01' WHERE id=$1",[failed.id]);
+ const d=(await a.get('/api/admin/dashboard?game=mobile-legends')).body;
+ assert.ok(d.rows.some(r=>r.id===failed.id));assert.equal(d.summary.refunds,20000);
+ assert.equal(d.summary.gross_profit,d.summary.received-d.summary.refunds-d.summary.cost);
+ assert.equal((await a.get('/api/admin/dashboard?start=2026-02-30&end=2026-03-01')).status,400);
+ assert.equal((await a.get('/api/admin/dashboard?start=2020-01-01&end=2026-03-01')).status,400);
+ const csv=await a.get('/api/admin/reports.csv?game=mobile-legends');assert.equal(csv.status,200);assert.match(csv.headers['content-type'],/text\/csv/);assert.ok(csv.text.includes(failed.id));
+});
 test('expired orders cannot be paid; logout invalidates session',async()=>{const r=await post(b,'/orders',csrfB,{items:[{productId:product,targetId:'123456789',serverId:'1234'}]}).set('Idempotency-Key','test-request-0004');await db.query("UPDATE orders SET expires_at=now()-interval '1 minute' WHERE id=$1",[r.body.id]);assert.equal((await post(b,'/orders/'+r.body.id+'/simulate-payment',csrfB)).status,409);assert.equal((await b.get('/api/orders/'+r.body.id)).body.payment_status,'expired');await post(b,'/auth/logout',csrfB);assert.equal((await b.get('/api/orders')).status,401);});

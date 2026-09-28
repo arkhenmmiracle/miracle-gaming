@@ -16,14 +16,14 @@ export async function createOrder(db,userId,requestKey,items){
   await tx.query('INSERT INTO order_events(order_id,message) VALUES ($1,$2)',[order.id,'Pesanan dibuat. Menunggu pembayaran simulasi.']);return order;
  });
 }
-export async function paySimulation(db,id,userId){return db.transaction(async tx=>{
+export async function paySimulation(db,id,userId,outcome='success'){return db.transaction(async tx=>{
  const o=(await tx.query('SELECT * FROM orders WHERE id=$1 AND user_id=$2 FOR UPDATE',[id,userId])).rows[0];
  if(!o)throw new HttpError(404,'Pesanan tidak ditemukan.');if(o.payment_status==='paid')return o;
  if(o.payment_status!=='pending'||new Date(o.expires_at)<=new Date())throw new HttpError(409,'Pesanan sudah kedaluwarsa atau tidak dapat dibayar.');
  await tx.query("UPDATE orders SET payment_status='paid',fulfillment_status='queued' WHERE id=$1",[id]);
  await tx.query("UPDATE order_items SET status='queued' WHERE order_id=$1",[id]);
  await tx.query('INSERT INTO fulfillment_jobs(order_id) VALUES ($1) ON CONFLICT DO NOTHING',[id]);
- await tx.query('INSERT INTO order_events(order_id,message) VALUES ($1,$2)',[id,'Pembayaran simulasi diterima; pengiriman masuk antrean.']);return {...o,payment_status:'paid',fulfillment_status:'queued'};
+ await tx.query('INSERT INTO order_events(order_id,message) VALUES ($1,$2)',[id,'Pembayaran simulasi diterima; pengiriman masuk antrean.']);if(outcome==='failed'){await tx.query("UPDATE orders SET fulfillment_status='failed' WHERE id=$1",[id]);await tx.query("UPDATE order_items SET status='failed' WHERE order_id=$1",[id]);await tx.query("UPDATE fulfillment_jobs SET status='failed',attempts=1 WHERE order_id=$1",[id]);await tx.query('INSERT INTO order_events(order_id,message) VALUES ($1,$2)',[id,'Pengiriman simulasi gagal: pemasok demo menolak permintaan. Tidak ada produk terkirim. Admin dapat memproses ulang atau melakukan refund simulasi.']);}return {...o,payment_status:'paid',fulfillment_status:'queued'};
 });}
 export async function processSimulation(db,orderId=null){return db.transaction(async tx=>{
  const job=(await tx.query("SELECT j.* FROM fulfillment_jobs j JOIN orders o ON o.id=j.order_id WHERE j.status='queued' AND o.payment_status='paid' AND ($1::uuid IS NULL OR j.order_id=$1) ORDER BY j.created_at LIMIT 1 FOR UPDATE OF j SKIP LOCKED",[orderId])).rows[0];if(!job)return false;
